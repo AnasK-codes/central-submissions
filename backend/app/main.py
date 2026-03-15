@@ -1,18 +1,25 @@
+import sys
+import os
+
+# Add project root to sys.path so the ai/ module can be imported
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from app.api.v1.api import api_router
-from app.db.session import engine
-from app.db.base import Base
+from app.api.router import api_router
 from app.core.config import settings
+from app.core.logging import configure_logging
+from app.core.rate_limit import limiter
+from database.base import Base
+from database.session import engine
 
-# 🔴 FIX: Global rate limiter — routes can override with @limiter.limit("N/minute")
-limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+# Configure structured logging at startup
+configure_logging()
 
 # 1. APP INITIALIZATION
 app = FastAPI(
@@ -62,3 +69,4 @@ async def validation_exception_handler(request, exc):
 
 # 5. ROUTER INCLUSION
 app.include_router(api_router, prefix=settings.API_V1_STR)
+

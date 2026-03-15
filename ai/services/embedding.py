@@ -1,19 +1,12 @@
-# Lazy loading to avoid slow server startup
-_model = None
+from sentence_transformers import SentenceTransformer
 
-def _get_model():
-    global _model
-    if _model is None:
-        from sentence_transformers import SentenceTransformer
-        _model = SentenceTransformer('BAAI/bge-large-en-v1.5')
-    return _model
+model = SentenceTransformer('BAAI/bge-large-en-v1.5')
 
-def get_embedding(text:str):
+
+def get_embedding(text: str):
     try:
-        model = _get_model()
-        embedding=model.encode(text).tolist()
+        embedding = model.encode(text).tolist()
         return embedding
     except Exception as e:
         print(f"Error generating embedding: {str(e)}")
         return None
-

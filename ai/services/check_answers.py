@@ -1,34 +1,9 @@
-from groq import Groq
-from app.core.config import GROQ_API_KEY
-from app.services.pinecone import query_embeddings, upsert_embeddings
 import json
 import re
 
-client = Groq(
-    api_key=GROQ_API_KEY,
-)
+from ai.services.llm_service import generate_response
+from ai.services.pinecone_service import query_embeddings, upsert_embeddings
 
-def generate_response(prompt: str, ltm=None) -> str:
-    try:
-        system_text = (
-            "You are an AI assistant. "
-            "Follow instructions exactly. "
-            "If asked for JSON, return ONLY valid JSON."
-        )
-
-        if ltm:
-            system_text += f" Memory: {ltm}"
-
-        chat_response = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": system_text},
-                {"role": "user", "content": prompt}
-            ],
-            model="llama-3.3-70b-versatile",
-        )
-        return chat_response.choices[0].message.content
-    except Exception as e:
-        return f"Error generating response: {str(e)}"
 
 def check_answer_correctness(question: str, answer: str, student_id: str):
     ltm = query_embeddings(question, student_id=student_id)
@@ -50,7 +25,7 @@ Return ONLY valid JSON:
 
     try:
         # Extract JSON safely
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
+        json_match = re.search(r"\{.*\}", response, re.DOTALL)
         if not json_match:
             raise ValueError("No JSON found")
 
@@ -72,27 +47,17 @@ Return ONLY valid JSON:
             level = "Excellent"
 
         # Save to vector memory
-        record_id = f"{student_id}_{abs(hash(question))}"
-        text_to_save = f"Question: {question}\nStudent's Answer: {answer}\nScore: {score}\nExplanation: {explanation}\nFeedback: {feedback}"
-        
-        print(f"[Pinecone] Saving to Pinecone...")
-        print(f"[Pinecone] Record ID: {record_id}")
-        print(f"[Pinecone] Student ID: {student_id}")
-        print(f"[Pinecone] Text preview: {text_to_save[:100]}...")
-        
-        upsert_result = upsert_embeddings(
-            text=text_to_save,
-            record_id=record_id,
-            student_id=student_id
+        upsert_embeddings(
+            text=f"Question: {question}\nStudent's Answer: {answer}\nScore: {score}\nExplanation: {explanation}\nFeedback: {feedback}",
+            record_id=f"{student_id}_{abs(hash(question))}",
+            student_id=student_id,
         )
-        
-        print(f"[Pinecone] Upsert completed: {upsert_result}")
 
         return {
             "score": score,
             "level": level,
             "explanation": explanation,
-            "feedback": feedback
+            "feedback": feedback,
         }
 
     except Exception:
@@ -100,5 +65,5 @@ Return ONLY valid JSON:
             "score": 0,
             "level": "Error",
             "explanation": "Could not evaluate answer correctness due to response parsing error.",
-            "feedback": ""
+            "feedback": "",
         }

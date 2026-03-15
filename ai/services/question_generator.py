@@ -1,11 +1,19 @@
 import json
 from groq import Groq
 
-from app.services.pinecone import query_embeddings,upsert_embeddings
-from app.core.config import GROQ_API_KEY
-client = Groq(
-    api_key=GROQ_API_KEY,
-)
+from ai.config import ai_settings
+from ai.services.pinecone_service import query_embeddings, upsert_embeddings
+
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = Groq(api_key=ai_settings.GROQ_API_KEY)
+    return _client
+
+
 def build_prompt(data, context=""):
     system_prompt = """
 You are an AI interview question generator.
@@ -49,48 +57,40 @@ Return strictly this JSON format:
 
 def generate_questions(data, student_id: str):
     try:
-        # Try to get context from embeddings, but don't fail if it times out
+        ltm = query_embeddings(data.subject, student_id=student_id)
         context = ""
-        try:
-            ltm = query_embeddings(data.subject, student_id=student_id)
-            if ltm and hasattr(ltm, "matches"):
-                for match in ltm.matches:
-                    context += match.metadata.get("text", "") + "\n"
-        except Exception as embed_err:
-            print(f"[Question Generator] Skipping context lookup due to: {embed_err}")
-            context = ""
+        if ltm and hasattr(ltm, "matches"):
+            for match in ltm.matches:
+                context += match.metadata.get("text", "") + "\n"
 
         system_prompt, user_prompt = build_prompt(data, context)
+        client = _get_client()
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
+                {"role": "user", "content": user_prompt},
             ],
             temperature=0.4,
         )
         raw = response.choices[0].message.content
 
-        # Strip markdown code block markers if present
-        raw = raw.strip()
-        if raw.startswith("```json"):
-            raw = raw[7:]
-        elif raw.startswith("```"):
-            raw = raw[3:]
-        if raw.endswith("```"):
-            raw = raw[:-3]
-        raw = raw.strip()
-
         try:
             parsed = json.loads(raw)
-            # Skip upserting during question generation to speed up response
-            # Questions can be indexed later or on answer submission
+            if "questions" in parsed:
+                for q in parsed["questions"]:
+                    upsert_embeddings(
+                        q["question_text"],
+                        str(hash(q["question_text"])),
+                        student_id=student_id,
+                    )
             return parsed
         except json.JSONDecodeError:
             print("Failed to parse JSON. Raw response:")
             print(raw)
             raise ValueError("AI response was not valid JSON.")
-    except Exception as e:
+    except Exception:
         import traceback
+
         traceback.print_exc()
         raise

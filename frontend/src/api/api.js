@@ -75,17 +75,20 @@ export const googleAuth = async (id_token) => {
  */
 
 // 4. startInterview
+// Initiates a new interview. Backend returns new session details
 export const startInterview = async (payload) => {
     return handleRequest(api.post('/interview/start', payload));
 };
 
 // 5. getNextQuestion
+// Fetches the next available question for the given session.
+// Backend returns next question object or "completed" state.
 export const getNextQuestion = async (session_id) => {
     return handleRequest(api.get(`/interview/${session_id}/next`));
 };
 
 // 6. submitAnswer
-// Backend SubmitAnswerRequest expects only: { interview_question_id, user_answer }
+// Submits answer. Backend returns either 'next' or 'completed' status without evaluating immediately.
 // student_id is derived server-side from the JWT token
 export const submitAnswer = async (session_id, interview_question_id, user_answer) => {
     return handleRequest(
@@ -99,6 +102,11 @@ export const submitAnswer = async (session_id, interview_question_id, user_answe
 // 7. getSummary
 export const getSummary = async (session_id) => {
     return handleRequest(api.get(`/interview/${session_id}/summary`));
+};
+
+// 8. getResult — simple score/total/percentage
+export const getResult = async (session_id) => {
+    return handleRequest(api.get(`/interview/${session_id}/result`));
 };
 
 export default api;

@@ -5,6 +5,18 @@ import useInterview from "../hooks/useInterview";
 import useAuth from "../hooks/useAuth";
 import QuestionCard from "../components/QuestionCard";
 
+/**
+ * InterviewScreen
+ *
+ * Main interview interface where the user answers generated questions.
+ * Handles the session flow, timer, and end-of-interview summary view.
+ *
+ * Responsibilities:
+ * - Fetch and display the next question from the backend
+ * - Capture user answer and submit to the backend
+ * - Track remaining time for the interview session
+ * - Show a final summary screen with performance breakdown upon completion
+ */
 const InterviewScreen = () => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -16,16 +28,23 @@ const InterviewScreen = () => {
         error,
         isComplete,
         questionNumber,
+        summary,
+        result,
         fetchNextQuestion,
         answer,
+        fetchSummary,
         reset,
     } = useInterview();
 
-    const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
+    // Remaining time in seconds for the interview (default 10 minutes)
+    const [timeLeft, setTimeLeft] = useState(600);
+    // Total questions expected in this session (passed from Config)
     const [totalQuestions, setTotalQuestions] = useState(
         location.state?.totalQuestions || 5
     );
+    // The unique ID matching the active session in the database
     const [interviewSessionId, setInterviewSessionId] = useState(null);
+    // Flag to prevent double-fetching the first question
     const [interviewStarted, setInterviewStarted] = useState(false);
 
     // Get sessionId from route state
@@ -34,7 +53,6 @@ const InterviewScreen = () => {
         if (sid) {
             setInterviewSessionId(sid);
         } else {
-            // No session, redirect to config
             navigate('/config');
         }
     }, [location.state, sessionId, navigate]);
@@ -57,39 +75,180 @@ const InterviewScreen = () => {
         return () => clearInterval(timer);
     }, [isComplete, timeLeft]);
 
-    // When interview is complete, exit properly via useEffect (not in render body)
-    useEffect(() => {
-        if (isComplete) {
-            reset();
-            navigate('/config');
-        }
-    }, [isComplete, reset, navigate]);
-
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`;
     };
 
+    // ─── SESSION HELPERS ──────────────────────────────────────────────
+
+    /** Fetch the next interview question from backend for this session */
     const handleNextQuestion = useCallback(async () => {
         await fetchNextQuestion(interviewSessionId);
     }, [fetchNextQuestion, interviewSessionId]);
 
+    /** Submit the user's typed answer to the backend */
+    const handleSubmitAnswer = useCallback(async (interview_question_id, user_answer) => {
+        return await answer(interview_question_id, user_answer, interviewSessionId);
+    }, [answer, interviewSessionId]);
+
+    /** Reset interview state and navigate back to configuration page */
     const handleExit = useCallback(() => {
         reset();
         navigate('/config');
     }, [reset, navigate]);
 
+    // Progress as a percentage (0–100) for the progress bar
     const progressPercentage = totalQuestions > 0
         ? Math.min((questionNumber / totalQuestions) * 100, 100)
         : 0;
 
-    // Don't render interview UI when complete (useEffect above handles navigation)
+    // ─── RESULTS VIEW ───────────────────────────────────────────────
     if (isComplete) {
-        return null;
+        if (!summary) {
+            return (
+                <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#d2f0fa] via-[#dbeef9] to-[#e8f4fc]">
+                    <div className="flex flex-col items-center gap-6 bg-white/90 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border border-white/80">
+                        <svg className="animate-spin h-16 w-16 text-[#0056b3]" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <div className="text-center">
+                            <h2 className="text-2xl font-bold text-[#0056b3] mb-2">Evaluating Your Interview...</h2>
+                            <p className="text-gray-500 font-medium max-w-sm">
+                                Please wait while our AI reviews your answers. This may take up to a minute.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        const getScoreColor = (score) => {
+            if (score >= 90) return { ring: 'border-green-400', text: 'text-green-600', bg: 'bg-green-50' };
+            if (score >= 70) return { ring: 'border-blue-400', text: 'text-blue-600', bg: 'bg-blue-50' };
+            if (score >= 40) return { ring: 'border-yellow-400', text: 'text-yellow-600', bg: 'bg-yellow-50' };
+            return { ring: 'border-red-400', text: 'text-red-600', bg: 'bg-red-50' };
+        };
+
+        const getLevelBadge = (level) => {
+            const map = {
+                Excellent: 'bg-gradient-to-r from-green-400 to-green-600 text-white',
+                Strong: 'bg-gradient-to-r from-blue-400 to-blue-600 text-white',
+                Average: 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-white',
+                Weak: 'bg-gradient-to-r from-red-400 to-red-600 text-white',
+            };
+            return map[level] || 'bg-gray-200 text-gray-700';
+        };
+
+        const colors = getScoreColor(summary.average_score);
+
+        return (
+            <div className="min-h-screen w-full bg-gradient-to-br from-[#d2f0fa] via-[#dbeef9] to-[#e8f4fc] overflow-x-hidden">
+                {/* Header */}
+                <header className="relative bg-white/40 backdrop-blur-sm px-6 py-4 flex justify-between items-center border-b-2 border-blue-100 shadow-sm">
+                    <div className="flex items-center">
+                        <img src={logo} alt="Logo" className="h-16 object-contain" />
+                    </div>
+                    <h2 className="text-xl font-bold text-[#0056b3]">Interview Results</h2>
+                </header>
+
+                <main className="max-w-3xl mx-auto w-full p-6 sm:p-8">
+                    {/* Score Card */}
+                    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/80 p-8 mb-8 text-center">
+                        <div className={`inline-flex items-center justify-center w-36 h-36 rounded-full border-8 ${colors.ring} ${colors.bg} mb-6`}>
+                            <div>
+                                <span className={`text-4xl font-extrabold ${colors.text}`}>
+                                    {summary.average_score}
+                                </span>
+                                <span className={`block text-sm font-medium ${colors.text} opacity-70`}>/100</span>
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <span className={`inline-block px-6 py-2 rounded-full text-base font-bold shadow-lg ${getLevelBadge(summary.performance_level)}`}>
+                                {summary.performance_level}
+                            </span>
+                        </div>
+
+                        <p className="text-gray-500 text-sm">
+                            You answered <strong className="text-gray-700">{summary.total_answered}</strong> question{summary.total_answered !== 1 ? 's' : ''}
+                        </p>
+                    </div>
+
+                    {/* Simple Score Card */}
+                    {result && (
+                        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/80 p-6 mb-8">
+                            <h3 className="text-lg font-bold text-[#0056b3] mb-4 flex items-center gap-2">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                Quick Result
+                            </h3>
+                            <div className="grid grid-cols-3 gap-4 text-center">
+                                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+                                    <p className="text-2xl font-extrabold text-[#0056b3]">{result.score}/{result.total}</p>
+                                    <p className="text-xs font-medium text-gray-500 mt-1">Correct</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+                                    <p className="text-2xl font-extrabold text-[#0056b3]">{result.percentage}%</p>
+                                    <p className="text-xs font-medium text-gray-500 mt-1">Percentage</p>
+                                </div>
+                                <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+                                    <p className="text-2xl font-extrabold text-[#0056b3]">{result.total}</p>
+                                    <p className="text-xs font-medium text-gray-500 mt-1">Total</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Breakdown */}
+                    {summary.breakdown && summary.breakdown.length > 0 && (
+                        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/80 p-6 mb-8">
+                            <h3 className="text-lg font-bold text-[#0056b3] mb-4 flex items-center gap-2">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                Question Breakdown
+                            </h3>
+                            <div className="space-y-3">
+                                {summary.breakdown.map((item, idx) => {
+                                    const qColors = getScoreColor(item.score);
+                                    return (
+                                        <div key={item.question_id || idx} className={`p-4 rounded-2xl border-2 ${qColors.ring} ${qColors.bg}`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-sm font-bold text-gray-700">Question {idx + 1}</span>
+                                                <span className={`text-lg font-extrabold ${qColors.text}`}>
+                                                    {item.score != null ? `${item.score}/100` : 'N/A'}
+                                                </span>
+                                            </div>
+                                            {item.feedback && (
+                                                <p className="text-sm text-gray-600">{item.feedback}</p>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Action Button */}
+                    <div className="text-center">
+                        <button
+                            onClick={handleExit}
+                            className="px-10 py-4 rounded-2xl font-bold text-base shadow-xl transition-all duration-300
+                                bg-gradient-to-r from-[#003380] to-[#0056b3] hover:from-[#002260] hover:to-[#003d82]
+                                text-white hover:shadow-2xl hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            Start New Interview →
+                        </button>
+                    </div>
+                </main>
+            </div>
+        );
     }
 
-    // Interview question view
+    // ─── INTERVIEW QUESTION VIEW ────────────────────────────────────
     return (
         <div className="min-h-screen w-full bg-gradient-to-br from-[#d2f0fa] via-[#dbeef9] to-[#e8f4fc] overflow-x-hidden">
 
@@ -188,7 +347,7 @@ const InterviewScreen = () => {
                         <QuestionCard
                             question={currentQuestion}
                             onNext={handleNextQuestion}
-                            onSubmitAnswer={answer}
+                            onSubmitAnswer={handleSubmitAnswer}
                             loading={loading}
                         />
                     </div>

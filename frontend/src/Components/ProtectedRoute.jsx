@@ -1,6 +1,17 @@
 import { Navigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
+/**
+ * ProtectedRoute
+ *
+ * Wrapper component to protect routes that require authentication.
+ *
+ * Responsibilities:
+ * - Check if the user is authenticated via Context
+ * - Render children if authenticated
+ * - Redirect to login page if not authenticated
+ * - Show a loading spinner while checking auth state
+ */
 const ProtectedRoute = ({ children }) => {
     const { token, loading } = useAuth();
 

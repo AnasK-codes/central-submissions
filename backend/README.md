@@ -7,13 +7,13 @@ The backend uses Large Language Models (LLMs) to dynamically generate interview 
 
 # Features
 
-* AI-generated interview questions
-* Real-time answer evaluation
-* Structured interview sessions
-* Student performance tracking
-* Version-controlled database with Alembic migrations
-* Modular FastAPI architecture
-* OAuth2 + JWT authentication
+- AI-generated interview questions
+- Real-time answer evaluation
+- Structured interview sessions
+- Student performance tracking
+- Version-controlled database with Alembic migrations
+- Modular FastAPI architecture
+- OAuth2 + JWT authentication
 
 ---
 
@@ -60,9 +60,9 @@ Stores user identity information.
 
 Fields include:
 
-* google_id
-* email
-* role (student/admin)
+- google_id
+- email
+- role (student/admin)
 
 ---
 
@@ -72,18 +72,18 @@ Fields include:
 
 Represents an academic domain such as:
 
-* Python
-* Data Structures
-* Operating Systems
+- Python
+- Data Structures
+- Operating Systems
 
 **Question**
 
 Master question bank containing:
 
-* question text
-* sample_answer
-* bloom_level
-* difficulty
+- question text
+- sample_answer
+- bloom_level
+- difficulty
 
 **question_subjects**
 
@@ -99,9 +99,9 @@ Tracks the lifecycle of an interview session.
 
 Includes:
 
-* mode
-* session status
-* llm_metadata
+- mode
+- session status
+- llm_metadata
 
 **InterviewQuestion**
 
@@ -111,38 +111,86 @@ Maintains the ordered list of questions asked during a session.
 
 Stores:
 
-* student response
-* AI score (double_precision)
-* detailed feedback
-* ai_evaluation_metadata (JSONB)
+- student response
+- AI score (double_precision)
+- detailed feedback
+- ai_evaluation_metadata (JSONB)
 
 ---
 
-
 # Setup
 
-## 1. Install dependencies
+All commands must be executed within the `backend/` directory.
 
+## 1. Create and Activate a Virtual Environment
+
+It is highly recommended to isolate your dependencies using a Python virtual environment.
+
+First, create the virtual environment:
+
+```bash
+python3 -m venv .venv
 ```
+
+Then, **activate** it:
+
+- **macOS/Linux**:
+  ```bash
+  source .venv/bin/activate
+  ```
+- **Windows (Command Prompt)**:
+  ```cmd
+  .venv\Scripts\activate.bat
+  ```
+- **Windows (PowerShell)**:
+  ```powershell
+  .venv\Scripts\Activate.ps1
+  ```
+
+_(You will know it is activated if `(.venv)` appears at the start of your terminal prompt)._
+
+---
+
+## 2. Install Dependencies
+
+With the virtual environment activated, install the required packages:
+
+```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-## 2. Run database migrations
+## 3. Configure Environment Variables
 
-```
-alembic upgrade head
+Create your `.env` file based on the provided template:
+
+```bash
+cp .env.example .env
 ```
 
-This syncs the database schema with the latest migration.
+Ensure your configuration (especially `DATABASE_URL` pointing to an active PostgreSQL database) is correct. Keep your `GOOGLE_CLIENT_ID` strictly on a single line.
 
 ---
 
-## 3. Run the server
+## 4. Run Database Migrations
 
+Apply the database schema changes using Alembic:
+
+```bash
+alembic upgrade head
 ```
-uvicorn main:app --reload
+
+This commands reads `alembic.ini` and `env.py` to sync your database with the latest schema.
+
+---
+
+## 5. Run the Server
+
+Start the development server:
+
+```bash
+uvicorn app.main:app --reload
 ```
 
 The API will be available at:
@@ -181,13 +229,13 @@ This allows testing the interview workflow without calling real LLM services.
 
 # Tech Stack
 
-* FastAPI
-* PostgreSQL
-* SQLAlchemy
-* Alembic
-* JWT Authentication
-* Google OAuth2
-* LLM-based evaluation system
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- Alembic
+- JWT Authentication
+- Google OAuth2
+- LLM-based evaluation system
 
 ---
 

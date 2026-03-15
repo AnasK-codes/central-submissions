@@ -1,33 +1,36 @@
 import { useState } from 'react';
 
+/**
+ * QuestionCard
+ *
+ * Component for displaying a single interview question and collecting the user's answer.
+ *
+ * Responsibilities:
+ * - Render the question text visually
+ * - Provide a text area for the user to type their answer
+ * - Submit the answer to the backend
+ * - Trigger navigation to the next question upon successful submission
+ */
 const QuestionCard = ({ question, onNext, onSubmitAnswer, loading }) => {
+    // Stores the current text input from the user
     const [userAnswer, setUserAnswer] = useState('');
-    const [submitted, setSubmitted] = useState(false);
-    const [feedback, setFeedback] = useState(null);
+    // Tracks ongoing submission to disable the input and button
     const [submitting, setSubmitting] = useState(false);
 
     const handleSubmit = async () => {
+        // Prevent submission if answer is blank or handler is missing
         if (!userAnswer.trim() || !onSubmitAnswer) return;
         setSubmitting(true);
         try {
-            // onSubmitAnswer calls useInterview.answer(interview_question_id, user_answer)
-            // Backend returns: { score, feedback, insights }
-            const result = await onSubmitAnswer(question.interview_question_id, userAnswer);
-            setFeedback(result);
-            setSubmitted(true);
+            await onSubmitAnswer(question.interview_question_id, userAnswer);
+            // After successful submission, clear the textarea and auto-advance to the next question
+            setUserAnswer('');
+            onNext();
         } catch (err) {
-            // Error is handled by the hook
+            // Error handling is delegated to the useInterview hook
         } finally {
             setSubmitting(false);
         }
-    };
-
-    const handleNext = () => {
-        // Reset state for the next question
-        setUserAnswer('');
-        setSubmitted(false);
-        setFeedback(null);
-        onNext();
     };
 
     return (
@@ -52,86 +55,47 @@ const QuestionCard = ({ question, onNext, onSubmitAnswer, loading }) => {
                 <textarea
                     value={userAnswer}
                     onChange={(e) => setUserAnswer(e.target.value)}
-                    disabled={submitted || submitting}
+                    disabled={submitting}
                     placeholder="Type your answer here..."
                     rows={4}
                     className={`w-full rounded-xl border-2 px-5 py-4 text-base font-medium text-gray-700
                         focus:outline-none focus:border-[#0056b3] focus:ring-4 focus:ring-blue-100
                         transition-all duration-200 resize-none
-                        ${submitted
+                        ${submitting
                             ? 'bg-gray-50 border-gray-200 cursor-not-allowed'
                             : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
                         }`}
                 />
             </div>
 
-            {/* Feedback after submission */}
-            {feedback && (
-                <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200">
-                    <div className="flex items-center gap-3 mb-2">
-                        <span className="text-lg font-bold text-[#0056b3]">
-                            Score: {feedback.score != null ? `${feedback.score}/100` : 'N/A'}
-                        </span>
-                    </div>
-                    {feedback.feedback && (
-                        <p className="text-sm text-gray-700">{feedback.feedback}</p>
-                    )}
-                </div>
-            )}
+
 
             {/* Action Buttons */}
             <div className="flex justify-end mt-auto gap-3">
-                {!submitted ? (
-                    <button
-                        onClick={handleSubmit}
-                        disabled={loading || submitting || !userAnswer.trim()}
-                        className={`px-8 py-3 rounded-xl font-bold text-base transition-all duration-300 flex items-center gap-2
-                            ${(loading || submitting || !userAnswer.trim())
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
-                            }`}
-                    >
-                        {submitting ? (
-                            <>
-                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                                Submitting...
-                            </>
-                        ) : (
-                            <>
-                                Submit Answer
-                                <span>✓</span>
-                            </>
-                        )}
-                    </button>
-                ) : (
-                    <button
-                        onClick={handleNext}
-                        disabled={loading}
-                        className={`px-8 py-3 rounded-xl font-bold text-base transition-all duration-300 flex items-center gap-2
-                            ${loading
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-[#003380] to-[#0056b3] hover:from-[#002260] hover:to-[#003d82] text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
-                            }`}
-                    >
-                        {loading ? (
-                            <>
-                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                                Loading...
-                            </>
-                        ) : (
-                            <>
-                                Next Question
-                                <span>→</span>
-                            </>
-                        )}
-                    </button>
-                )}
+                <button
+                    onClick={handleSubmit}
+                    disabled={loading || submitting || !userAnswer.trim()}
+                    className={`px-8 py-3 rounded-xl font-bold text-base transition-all duration-300 flex items-center gap-2
+                        ${(loading || submitting || !userAnswer.trim())
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+                        }`}
+                >
+                    {submitting ? (
+                        <>
+                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Submitting...
+                        </>
+                    ) : (
+                        <>
+                            Submit Answer
+                            <span>→</span>
+                        </>
+                    )}
+                </button>
             </div>
         </div>
     );

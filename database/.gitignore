@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.env
+
+# Database specific
+migrations/versions/*
+!migrations/versions/.gitkeep
+test.db
+*.sqlite3

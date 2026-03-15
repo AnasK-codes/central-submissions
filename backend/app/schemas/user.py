@@ -1,37 +1,8 @@
-import re
-from pydantic import BaseModel, EmailStr, Field, field_validator
+"""
+app/schemas/user.py — backward-compatibility shim.
 
-# This is for the POST /auth/signup endpoint
-class SignupRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    email: EmailStr
-    password: str = Field(..., min_length=8)
-
-    # 🟡 FIX: Enforce password complexity.
-    @field_validator("password")
-    @classmethod
-    def password_complexity(cls, v: str) -> str:
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter.")
-        if not re.search(r"[0-9]", v):
-            raise ValueError("Password must contain at least one digit.")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError("Password must contain at least one special character.")
-        return v
-
-# This is for the POST /auth/login endpoint 
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-# This is the "User" object we return in the data envelope
-class UserOut(BaseModel):
-    id: int
-    name: str
-    email: EmailStr
-
-    class Config:
-        from_attributes = True
-
-class GoogleLoginRequest(BaseModel):
-    id_token: str
+Auth-related schemas moved to auth_schema.py.
+User response schema moved to user_schema.py.
+"""
+from app.schemas.auth_schema import SignupRequest, LoginRequest, GoogleLoginRequest  # noqa: F401
+from app.schemas.user_schema import UserOut  # noqa: F401

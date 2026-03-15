@@ -1,39 +1,22 @@
-from typing import Any, Optional, List
-from pydantic import BaseModel
-from fastapi import HTTPException
+"""
+app/core/responses.py — backward-compatibility shim.
 
+Response helpers have been moved to app.utils.response.
+This module re-exports them so any external code that still imports
+from app.core.responses continues to work without modification.
+"""
+from app.utils.response import (  # noqa: F401
+    StandardResponse,
+    ErrorDetail,
+    ErrorResponse,
+    success_response,
+    error_response,
+)
 
-class StandardResponse(BaseModel):
-    success: bool = True
-    data: Any
-
-
-class ErrorDetail(BaseModel):
-    field: str
-    error: str
-
-
-class ErrorResponse(BaseModel):
-    success: bool = False
-    message: str
-    code: str
-    details: Optional[List[ErrorDetail]] = None
-
-
-def success_response(data: Any):
-    return {
-        "success": True,
-        "data": data,
-    }
-
-
-def error_response(message: str, code: str, status_code: int = 400):
-    """Raise an HTTPException with the standard error envelope."""
-    raise HTTPException(
-        status_code=status_code,
-        detail={
-            "success": False,
-            "message": message,
-            "code": code,
-        },
-    )
+__all__ = [
+    "StandardResponse",
+    "ErrorDetail",
+    "ErrorResponse",
+    "success_response",
+    "error_response",
+]
