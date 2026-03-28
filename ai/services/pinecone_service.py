@@ -5,7 +5,7 @@ from ai.services.embedding import get_embedding
 
 _pc = None
 _index = None
-INDEX_NAME = "prashikshan-question"
+INDEX_NAME = "prashikshan-question-v2"  # New index for 384 dimensions
 
 
 def _get_index():
@@ -21,7 +21,7 @@ def _get_index():
     if INDEX_NAME not in [index.name for index in _pc.list_indexes()]:
         _pc.create_index(
             name=INDEX_NAME,
-            dimension=1024,  # must match embedding model
+            dimension=384,  # Changed to 384 to match all-MiniLM-L6-v2
             metric="cosine",
             spec=ServerlessSpec(cloud="aws", region="us-east-1"),
         )
