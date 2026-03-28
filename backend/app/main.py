@@ -37,8 +37,8 @@ app.add_middleware(SlowAPIMiddleware)
 # 2. CORS SETUP
 origins = [
     "http://localhost:3000",  # Standard React port
-    "http://localhost:5173"
-    "https://prashikshanai.vercel.app"  # Standard Vite port
+    "http://localhost:5173",  # Standard Vite port
+    "https://prashikshanai.vercel.app"
 ]
 
 app.add_middleware(
